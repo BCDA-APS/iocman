@@ -41,6 +41,15 @@ def get_subnet():
 	
 	my_subnet = my_ip.rsplit(sep=".", maxsplit=1)[0]
 	return my_subnet
+
+def check_port(host, port):
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	
+	try:
+		s.connect((host, port))
+		return True
+	except e:
+		return False
 	
 
 class AliveDB(object):
@@ -48,7 +57,7 @@ class AliveDB(object):
 	_ALIVEDB_LOC = "/APSshare/bin/alivedb"
 	last_update_all = 0.0
 	
-	def parse(self, input):
+	def parse(self, input, doprint=False):
 		data = {}
 		
 		ioc = ""
@@ -64,7 +73,7 @@ class AliveDB(object):
 			except:
 				ioc = ""
 				pass
-			
+				
 			check_new_ioc = new_ioc_match.match(line_str)
 			
 			if check_new_ioc:
@@ -89,8 +98,10 @@ class AliveDB(object):
 			else:
 				lines += line_str + "\n"
 				
-		output = {}
+		data[ioc] = lines
 				
+		output = {}
+		
 		for ioc in data:
 			config = None
 			try:
@@ -217,6 +228,47 @@ class IOCLine(Frame):
 		self.master.iocs.update(self.info["name"])
 		self.info = self.master.iocs[self.info["name"]]
 		
+		script_check = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".pl")
+		
+		if len(script_check) == 0:
+			script_check = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".sh")
+			
+		if len(script_check) == 0:
+			message = "Cannot find startup script (" + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
+			message += "Check for file system network issues\n"
+			
+			raise message
+			
+		if len(script_check) > 1:
+			message = "Found multiple startup scripts ("  + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
+			message += "Check for file system issues"
+			
+			raise message
+			
+		self.script = script_check[0]
+		self.command_file = None
+		
+		command_check = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"] + "-command.txt")
+		
+		if len(command_check) > 1:
+			message = "Found multiple files matching " + self.info["name"] + "-command.txt\n\n"
+					
+			for filepath in commands:
+				message += "\t" + filepath + "\n"
+						
+			message += "\n"
+			message += "Check IOC naming convention and folder structure."
+			
+			raise message
+		
+		if len(command_check) == 1:
+			self.command_file = command_check[0]
+			
+			with open(self.command_file) as info:
+				self.command_pid = info.readline().strip().split(":")[1]
+				self.command_tcp, self.command_host, self.command_port = info.readline().strip().split(":")
+				
+		
 	def connection_monitor(self, **kws):
 		if self.pv:
 			if kws["conn"]:
@@ -243,33 +295,18 @@ class IOCLine(Frame):
 		self.master.after(250, self.update_visual)
 		
 	def console_pressed(self):
-		self.info_update()
-		script = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".pl")
-		
-		if len(script) == 0:
-			script = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".sh")
-					
+		try:
+			self.info_update()
+		except e:
+			tkinter.messagebox.showinfo("Console", e)
+			return
+			
 		if not self.connected:
 			message = "IOC alive record not reachable\n\n"
 			message += "Check to see if the IOC is up and for networking issues"
 			
 			tkinter.messagebox.showinfo("Console", message)
 			return
-		
-		if len(script) == 0:
-			message = "Cannot find startup script (" + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-			message += "Check for file system network issues\n"
-			
-			tkinter.messagebox.showinfo("Console", message)
-			return
-			
-		elif len(script) > 1:
-			message = "Found multiple startup scripts ("  + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-			message += "Check for file system issues"
-			
-			tkinter.messagebox.showinfo("Console", message)
-			return
-		
 		
 		if not "PID" in self.info["PROCSERV"]:
 			my_name = pwd.getpwuid(os.getuid()).pw_name
@@ -285,31 +322,17 @@ class IOCLine(Frame):
 				response = tkinter.messagebox.askokcancel("Console", message)
 				
 				if response:
-					os.system("gnome-terminal --title='" + self.info["name"] + "console' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + script[0] + " console'")
+					os.system("gnome-terminal --title='" + self.info["name"] + "console' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " console'")
 				return
 			
-		os.system("gnome-terminal --title='" + self.info["name"] + " console' -- " + script[0] + " console")
+		os.system("gnome-terminal --title='" + self.info["name"] + " console' -- " + self.script + " console")
 		
 		
 	def start_pressed(self):
-		self.info_update()
-		script = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".pl")
-		
-		if len(script) == 0:
-			script = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".sh")
-		
-		if len(script) == 0:
-			message = "Cannot find startup script (" + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-			message += "Check for file system network issues\n"
-			
-			tkinter.messagebox.showinfo("Start/Stop", message)
-			return
-			
-		elif len(script) > 1:
-			message = "Found multiple startup scripts ("  + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-			message += "Check for file system issues"
-			
-			tkinter.messagebox.showinfo("Start/Stop", message)
+		try:
+			self.info_update()
+		except e:
+			tkinter.messagebox.showinfo("Start/Stop", e)
 			return
 			
 		if not "PID" in self.info["PROCSERV"]:
@@ -327,45 +350,49 @@ class IOCLine(Frame):
 					response = tkinter.messagebox.askokcancel("Start/Stop", message)
 					
 					if response:
-						os.system("gnome-terminal --title='Stop IOC' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + script[0] + " stop'")
+						os.system("gnome-terminal --title='Stop IOC' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " stop'")
 					return
 		
 		else:
-			if not self.connected:
-				commands = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"] + "-command.txt")
-				
-				if len(commands) == 0:
-					message = "IOC last ran using remote start, are you sure you want to start IOC without remote operation?"
-				
-					response = tkinter.messagebox.askokcancel("Start/Stop", message)
-						
-					if not response:
-						return
-						
-				elif len(commands) > 1:
-					message = "Found multiple files matching " + self.info["name"] + "-command.txt\n\n"
+			if not self.connected and not self.command_file:
+				message = "IOC last ran using remote start, are you sure you want to start IOC without remote operation?"
+			
+				response = tkinter.messagebox.askokcancel("Start/Stop", message)
 					
-					for filepath in commands:
-						message += "\t" + filepath + "\n"
-						
-					message += "\n"
-					message += "Check IOC naming convention and folder structure."
-					
-					tkinter.messagebox.showinfo("Remote Info", message)
+				if not response:
 					return
+					
+			else:
+				port_check = check_port(self.command_host, self.command_port)
+			
+				if not port_check:
+					message = "IOC indicates a remote command console is running\n"
+					message += "but cannot communicate with port.\n\n"
+					message += "PID: "  + self.command_pid  + "\n"
+					message += "Host: " + self.command_host + "\n"
+					message += "Port: " + self.command_port + "\n\n"
+					message += "Check network communications and host processes\n"
+					message += "Otherwise, use 'Remote' to delete leftover file"
+					
+					tkinter.messagebox.showinfo("Start/Stop", message)
+					return
+						
 				
 				
 		if not self.connected:
-			os.system(script[0] + " start")
+			os.system(self.script + " start")
 		else:
-			os.system(script[0] + " stop")
+			os.system(self.script + " stop")
 		
 			
 	def remote_pressed(self):
-		self.info_update()
-		commands = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"] + "-command.txt")
-				
-		if len(commands) == 0:
+		try:
+			self.info_update()
+		except e:
+			tkinter.messagebox.showinfo("Remote Info", e)
+			return
+		
+		if not self.command_file:
 			if self.connected:
 				if "PID" in self.info["PROCSERV"]:
 					message = "IOC indicates command console should be available, but " + self.info["name"] + "-command.txt file not found\n\n"
@@ -395,33 +422,35 @@ class IOCLine(Frame):
 				message = "IOC remote operation only currently enabled for linux architectures"
 				tkinter.messagebox.showinfo("Remote Info", message)
 				return
-			
-		elif len(commands) > 1:
-			message = "Found multiple files matching " + self.info["name"] + "-command.txt\n\n"
-			
-			for filepath in commands:
-				message += "\t" + filepath + "\n"
-				
-			message += "\n"
-			message += "Check IOC naming convention and folder structure."
-			
-			tkinter.messagebox.showinfo("Remote Info", message)
-			return
 					
 		else:
-			message = "Remote control operating\n\n"
-			
-			with open(commands[0]) as info:
-				message += info.readline()
-				message += info.readline()
+			message = "Remote control listed as\n\n"
+			message += "PID: "  + self.command_pid  + "\n"
+			message += "Host: " + self.command_host + "\n"
+			message += "Port: " + self.command_port + "\n"
 			
 			message += "\n"
 				
+			port_check = check_port(self.command_host, self.command_port)
+			
+			if not port_check:
+				message += "but cannot connect to listed port.\n"
+				message += "Do you wish to delete command file?\n"
+				message += "\tFile: " + self.command_file
+				
+				result = tkinter.messagebox.askokcancel("Remote Info", message)
+				
+				if result:
+					os.system("gnome-terminal --title='Delete file' -- rm " + self.command_file)
+					
+				return
+					
+			
 			if self.connected:
 				message += "Shut down IOC before disabling remote control"
 				
 				tkinter.messagebox.showinfo("Remote Info", message)
-			else:		
+			else:				
 				message += "\n"
 		
 				message += "Would you like to disable?"
@@ -429,28 +458,12 @@ class IOCLine(Frame):
 				result = tkinter.messagebox.askokcancel("Remote Disable", message)
 			
 				if result:
-					script = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".pl")
-					
-					if len(script) == 0:
-						message = "Cannot find startup script (" + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-						message += "Check for file system network issues\n"
-						
-						tkinter.messagebox.showinfo("Remote Info", message)
-						return
-						
-					elif len(script) > 1:
-						message = "Found multiple startup scripts ("  + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-						message += "Check for file system issues"
-						
-						tkinter.messagebox.showinfo("Remote Info", message)
-						return
-						
 					my_name = pwd.getpwuid(os.getuid()).pw_name
 				
 					if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
-						os.system("gnome-terminal --title='Remote Disable' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + script[0] + " remote disable'")
+						os.system("gnome-terminal --title='Remote Disable' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " remote disable'")
 					else:
-						os.system("gnome-terminal --title='Remote Disable' -- " + script[0] + " remote disable")
+						os.system("gnome-terminal --title='Remote Disable' -- " + self.script + " remote disable")
 			return
 		
 		
@@ -461,28 +474,18 @@ class IOCLine(Frame):
 		result = tkinter.messagebox.askokcancel("Remote Control", message)
 		
 		if result:
-			script = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"].removeprefix("ioc") + ".pl")
-			
-			if len(script) == 0:
-				message = "Cannot find startup script (" + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-				message += "Check to make sure IOC is at least synApps 6-3\n"
+			if not self.script.endswith(".pl"):
+				message = "Check to make sure IOC is at least synApps 6-3 to use Remote start\n"
 				
 				tkinter.messagebox.showinfo("Remote Info", message)
 				return
-				
-			elif len(script) > 1:
-				message = "Found multiple startup scripts ("  + self.info["name"].removeprefix("ioc") + ".pl) for IOC\n\n"
-				message += "Check IOC naming conventions"
-				
-				tkinter.messagebox.showinfo("Remote Info", message)
-				return
-			
+							
 			my_name = pwd.getpwuid(os.getuid()).pw_name
 				
 			if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
-				os.system("gnome-terminal --title='Remote Enable' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + script[0] + " remote enable'")
+				os.system("gnome-terminal --title='Remote Enable' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " remote enable'")
 			else:
-				os.system("gnome-terminal --title='Remote Enable' -- " + script[0] + " remote enable")
+				os.system("gnome-terminal --title='Remote Enable' -- " + self.script + " remote enable")
 				
 	
 	def remove_pressed(self):
