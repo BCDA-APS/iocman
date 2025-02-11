@@ -631,7 +631,11 @@ class Application(Frame):
 			if parser.has_option("MAIN", "NUMBER_OF_IOCS"):
 				for index in range(int(parser.get("MAIN", "NUMBER_OF_IOCS"))):
 					ioc = parser.get("IOC_" + str(index), "NAME")
-					self.add_line(ioc, ioc_list[ioc])
+					
+					if ioc in ioc_list:
+						self.add_line(ioc, ioc_list[ioc])
+					else:
+						print("Could not find saved IOC: " + ioc)
 		
 		else:
 			for ioc in ioc_list:
@@ -640,7 +644,7 @@ class Application(Frame):
 						self.add_line(ioc, ioc_list[ioc])
 					else:
 						message = "More IOCs are availble, truncated results to first " + str(MAX_INITIAL_LENGTH) + "\n\n"
-						message += "Save configuration to remove this message"
+						message += "Create and save a configuration to allow for more IOCs"
 						tkinter.messagebox.showinfo("Truncated IOCS", message)
 						break
 
