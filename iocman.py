@@ -303,10 +303,12 @@ class IOCLine(Frame):
 			
 		if not self.connected:
 			message = "IOC alive record not reachable\n\n"
-			message += "Check to see if the IOC is up and for networking issues"
+			message += "If you believe the IOC should be starting up, you can proceed anyways."
 			
-			tkinter.messagebox.showinfo("Console", message)
-			return
+			result = tkinter.messagebox.askokcancel("Console", message)
+			
+			if not result:
+				return
 		
 		if not "PID" in self.info["PROCSERV"]:
 			my_name = pwd.getpwuid(os.getuid()).pw_name
@@ -322,10 +324,10 @@ class IOCLine(Frame):
 				response = tkinter.messagebox.askokcancel("Console", message)
 				
 				if response:
-					os.system("gnome-terminal --title='" + self.info["name"] + "console' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " console'")
+					os.system("xterm -T '" + self.info["name"] + "console' -e ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " console'")
 				return
 			
-		os.system("gnome-terminal --title='" + self.info["name"] + " console' -- " + self.script + " console")
+		os.system("xterm -T '" + self.info["name"] + " console' -e " + self.script + " console")
 		
 		
 	def start_pressed(self):
@@ -350,7 +352,7 @@ class IOCLine(Frame):
 					response = tkinter.messagebox.askokcancel("Start/Stop", message)
 					
 					if response:
-						os.system("gnome-terminal --title='Stop IOC' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " stop'")
+						os.system("xterm -T 'Stop IOC' -e ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " stop'")
 					return
 		
 		else:
@@ -414,7 +416,7 @@ class IOCLine(Frame):
 				message += "\tStatus = " + self.info["status"] + "\n"
 				message += "\tIP = " + self.info["ip"] + "\n\n"
 				
-				message += "Check network connection before attempting to start remote control"
+				message += "Check network connection or wait a bit for alive database to update (~1 min) before attempting to start remote control"
 				tkinter.messagebox.showinfo("Remote Info", message)
 				return
 				
@@ -441,7 +443,7 @@ class IOCLine(Frame):
 				result = tkinter.messagebox.askokcancel("Remote Info", message)
 				
 				if result:
-					os.system("gnome-terminal --title='Delete file' -- rm " + self.command_file)
+					os.system("xterm -T 'Delete file' -e rm " + self.command_file)
 					
 				return
 					
@@ -461,9 +463,9 @@ class IOCLine(Frame):
 					my_name = pwd.getpwuid(os.getuid()).pw_name
 				
 					if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
-						os.system("gnome-terminal --title='Remote Disable' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " remote disable'")
+						os.system("xterm -T 'Remote Disable' -e ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " remote disable'")
 					else:
-						os.system("gnome-terminal --title='Remote Disable' -- " + self.script + " remote disable")
+						os.system("xterm -T 'Remote Disable' -e " + self.script + " remote disable")
 			return
 		
 		
@@ -483,9 +485,9 @@ class IOCLine(Frame):
 			my_name = pwd.getpwuid(os.getuid()).pw_name
 				
 			if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
-				os.system("gnome-terminal --title='Remote Enable' -- ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " remote enable'")
+				os.system("xterm -T 'Remote Enable' -e ssh " + self.info["user"] + "@" + self.info["hostname"] + " '" + self.script + " remote enable'")
 			else:
-				os.system("gnome-terminal --title='Remote Enable' -- " + self.script + " remote enable")
+				os.system("xterm -T 'Remote Enable' -e " + self.script + " remote enable")
 				
 	
 	def remove_pressed(self):
