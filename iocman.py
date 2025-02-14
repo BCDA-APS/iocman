@@ -337,6 +337,8 @@ class IOCLine(Frame):
 			tkinter.messagebox.showinfo("Start/Stop", e)
 			return
 			
+		check_ok = True
+			
 		if not "PID" in self.info["PROCSERV"]:
 			if self.connected:				
 				my_name = pwd.getpwuid(os.getuid()).pw_name
@@ -364,6 +366,8 @@ class IOCLine(Frame):
 				if not response:
 					return
 					
+				check_ok = False
+					
 			else:
 				port_check = check_port(self.command_host, self.command_port)
 			
@@ -379,12 +383,17 @@ class IOCLine(Frame):
 					tkinter.messagebox.showinfo("Start/Stop", message)
 					return
 						
+		action = "start"
+		
+		if self.connected:
+			action = "stop"
 				
-				
-		if not self.connected:
-			os.system(self.script + " start")
-		else:
-			os.system(self.script + " stop")
+		if check_ok:
+			message = "Are you sure you want to {} IOC?"
+			response = tkinter.messagebox.askokcancel("Start/Stop", message.format(action))
+			
+			if response:
+				os.system(self.script + " " + action)
 		
 			
 	def remote_pressed(self):
