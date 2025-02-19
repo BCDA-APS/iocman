@@ -48,7 +48,7 @@ def check_port(host, port):
 	try:
 		s.connect((host, port))
 		return True
-	except e:
+	except:
 		return False
 	
 
@@ -297,7 +297,7 @@ class IOCLine(Frame):
 	def console_pressed(self):
 		try:
 			self.info_update()
-		except e:
+		except Exception as e:
 			tkinter.messagebox.showinfo("Console", e)
 			return
 			
@@ -333,7 +333,7 @@ class IOCLine(Frame):
 	def start_pressed(self):
 		try:
 			self.info_update()
-		except e:
+		except Exception as e:
 			tkinter.messagebox.showinfo("Start/Stop", e)
 			return
 			
@@ -399,7 +399,7 @@ class IOCLine(Frame):
 	def remote_pressed(self):
 		try:
 			self.info_update()
-		except e:
+		except Exception as e:
 			tkinter.messagebox.showinfo("Remote Info", e)
 			return
 		
