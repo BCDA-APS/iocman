@@ -28,9 +28,10 @@ add_icon    = PhotoImage(data="R0lGODlhEAAQAMZsAA4TNRMZPxQaQxYbRRccSRceSxgeThshU
 remove_icon = PhotoImage(data="R0lGODlhEAAQAMZrAMYJCbAPD8gJCccKCbMQD8cNDcQODcUODckNDb4TEtYNDcQSEtcNDdgNDcYSEb8UE74XFr8XFtQSEccXFtYTEsgXFtcTEtgTEdgTEr8aGcAaGbIgH7AhIdIYF9MYF78eHcwbGsEeHdgYF9oYF8wcGtkZGLMlJNMdHNQdHNoeHdseHdseHtUiINYiIdskItwkItcoJdgoJt0qJ9QtK781M9AxL9EyL7k5N8E3Nd4wLc80Mro6ONA1M884NtE5Nt82Mt82M+A3NL9BQMBCQNM9OtU+OuE7N+I7N8ZDQcdDQd0+Ot4+O8RFROM9OcZGRMVHRcZIReRAPOJBPcVJSORBPcdKSORDP+VDP91HRd5HRORGQuZGQuZJRedJRd1OS+ZMR95OS+dMR+dMSORPS+ZRTN5TUOBTUOBWUuJXU+ZYU+hZVP///////////////////////////////////////////////////////////////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAevgH9/N0OChoZCO4Y0aWhVh4JTZ2o4fxxjYWFmUIdPZWJfZCZ/RFxaW2BOgkxeW1pdRYY9VlJRWUlIWFRSVz6QOk1GR0tKR0ZNPJCCNUFAP0BAQTbKhjM51zkzG9R/HzAy4DIxIdQZLC8u6S4vLRqQECcrKSokICrzKBGGCR0lIiMVBE0YIaKEhwd/AkiwQAGDg0MLLlCwIIHAnwINGBxQZkABAwSGBgjgBmAkt5OBAAA7")
 
 COLUMN_1_WIDTH=25
-COLUMN_2_WIDTH=40
-COLUMN_3_WIDTH=20
-COLUMN_4_WIDTH=10
+COLUMN_2_WIDTH=25
+COLUMN_3_WIDTH=40
+COLUMN_4_WIDTH=20
+COLUMN_5_WIDTH=10
 
 MAX_INITIAL_LENGTH=15
 
@@ -190,27 +191,35 @@ class LabelLine(Frame):
 	def __init__(self, master, save_func=None, add_func=None):
 		Frame.__init__(self, master)
 		
-		self.name = Label(self, text="IOC Name", width=COLUMN_1_WIDTH)
-		self.name.grid(row=0, column=0, sticky=NSEW)
+		self.desc = Label(self, text="Description", width=COLUMN_1_WIDTH)
+		self.desc.grid(row=0, column=0, padx=(5,0), sticky=NSEW)
+		
+		self.name = Label(self, text="IOC Name", width=COLUMN_2_WIDTH)
+		self.name.grid(row=0, column=1, sticky=NSEW)
+		
+		label_font = font.Font(self.name, self.name.cget("font"))
+		label_font.configure(underline=True)
+		self.name.configure(font=label_font)
+		self.desc.configure(font=label_font)
 		
 		label_font = font.Font(self.name, self.name.cget("font"))
 		label_font.configure(underline=True)
 		self.name.configure(font=label_font)
 		
-		self.host = Label(self, text="IOC Host", font=label_font, width=COLUMN_2_WIDTH)
-		self.host.grid(row=0, column=2, sticky=NSEW)
+		self.host = Label(self, text="IOC Host", font=label_font, width=COLUMN_3_WIDTH)
+		self.host.grid(row=0, column=3, sticky=NSEW)
 		
-		self.status = Label(self, text="Alive Status", font=label_font, width=COLUMN_3_WIDTH - 4)
-		self.status.grid(row=0, column=3, sticky=NSEW)
+		self.status = Label(self, text="Alive Status", font=label_font, width=COLUMN_4_WIDTH - 4)
+		self.status.grid(row=0, column=4, sticky=NSEW)
 		
-		self.placeholder = Label(self, text="", width=COLUMN_4_WIDTH * 3 + 14)
-		self.placeholder.grid(row=0, column=1, sticky=NSEW)
+		self.placeholder = Label(self, text="", width=COLUMN_5_WIDTH * 3 + 15)
+		self.placeholder.grid(row=0, column=2, sticky=NSEW)
 		
 		self.saveConfig = Button(self, image=save_icon, command=save_func)
-		self.saveConfig.grid(row=0, column=4, sticky=NSEW)
+		self.saveConfig.grid(row=0, column=5, sticky=NSEW)
 		
 		self.addIOC = Button(self, image=add_icon, command=add_func)
-		self.addIOC.grid(row=0, column=5, padx=(5,0), sticky=NSEW)
+		self.addIOC.grid(row=0, column=6, padx=(5,0), sticky=NSEW)
 		
 		
 class IOCLine(Frame):
@@ -503,7 +512,7 @@ class IOCLine(Frame):
 		self.pv.disconnect()
 		self.master.remove_line(self)
 		
-	def __init__(self, master, name, info):
+	def __init__(self, master, name, info, description=""):
 		Frame.__init__(self, master)
 	
 		self.name = name.strip()
@@ -513,26 +522,32 @@ class IOCLine(Frame):
 		self.connected = False
 		self.destroyed = False
 		
-		self.index = Label(self, width=COLUMN_1_WIDTH, text=self.name)
-		self.index.grid(row=0, column=0, sticky=NSEW)
+		self.description = tkinter.StringVar()
+		self.description.set(description)
 		
-		self.remote = Button(self, width=COLUMN_4_WIDTH, text="Remote", command=self.remote_pressed)
-		self.remote.grid(row=0, column=1, padx=(0,5), sticky=NSEW)
+		self.desc = Entry(self, width=COLUMN_1_WIDTH, textvariable=self.description)
+		self.desc.grid(row=0, column=0, padx=(5,0), sticky=NSEW)
 		
-		self.control = Button(self, width=COLUMN_4_WIDTH, text="Start", command=self.start_pressed, fg="sea green")
-		self.control.grid(row=0, column=2, padx=(0,5), sticky=NSEW)
+		self.index = Label(self, width=COLUMN_2_WIDTH, text=self.name)
+		self.index.grid(row=0, column=1, sticky=NSEW)
 		
-		self.console = Button(self, width=COLUMN_4_WIDTH, text="Console", command=self.console_pressed)
-		self.console.grid(row=0, column=3, sticky=NSEW)
+		self.remote = Button(self, width=COLUMN_5_WIDTH, text="Remote", command=self.remote_pressed)
+		self.remote.grid(row=0, column=2, padx=(0,5), sticky=NSEW)
 		
-		self.host = Label(self, width=COLUMN_2_WIDTH)
-		self.host.grid(row=0, column=4, sticky=NSEW)
+		self.control = Button(self, width=COLUMN_5_WIDTH, text="Start", command=self.start_pressed, fg="sea green")
+		self.control.grid(row=0, column=3, padx=(0,5), sticky=NSEW)
 		
-		self.connection = Label(self, width=COLUMN_3_WIDTH, text="Disconnected", fg="red")
-		self.connection.grid(row=0, column=5, sticky=NSEW)
+		self.console = Button(self, width=COLUMN_5_WIDTH, text="Console", command=self.console_pressed)
+		self.console.grid(row=0, column=4, sticky=NSEW)
+		
+		self.host = Label(self, width=COLUMN_3_WIDTH)
+		self.host.grid(row=0, column=5, sticky=NSEW)
+		
+		self.connection = Label(self, width=COLUMN_4_WIDTH, text="Disconnected", fg="red")
+		self.connection.grid(row=0, column=6, sticky=NSEW)
 		
 		self.remove = Button(self, image=remove_icon, command=self.remove_pressed)
-		self.remove.grid(row=0, column=6, padx=(10,5), sticky=NSEW)
+		self.remove.grid(row=0, column=7, padx=(10,5), sticky=NSEW)
 		
 		self.connect()
 		self.update_visual()
@@ -544,11 +559,13 @@ class Application(Frame):
 		for each in self.lines:
 			each.disconnect()
 		
+		#self.save_config(pop_up=False)
+			
 		self.quit()
 		
 		
-	def add_line(self, ioc, info):
-		self.lines.append(IOCLine(self, ioc, info))
+	def add_line(self, ioc, info, description=""):
+		self.lines.append(IOCLine(self, ioc, info, description=description))
 		self.next_row = self.next_row + 1
 		
 		self.lines[len(self.lines) - 1].grid(row=self.next_row, column=0, pady=(0,5), sticky=NSEW)
@@ -559,7 +576,7 @@ class Application(Frame):
 		self.lines.remove(line)
 		line.grid_remove()
 		
-	def save_config(self):
+	def save_config(self, pop_up=True):
 		config = configparser.RawConfigParser()
 		config.add_section("MAIN")
 		config.set("MAIN", "NUMBER_OF_IOCS", str(len(self.lines)))
@@ -571,12 +588,15 @@ class Application(Frame):
 			
 			config.add_section(index)
 			config.set(index, "NAME", line.info["name"])
+			config.set(index, "DESC", line.description.get())
 			
 			i = i + 1
 			
 		with open(self.config_file, "w") as output:
 			config.write(output)
-			tkinter.messagebox.showinfo("Saved Config", "Configuration saved to: " + self.config_file)
+			
+			if pop_up:
+				tkinter.messagebox.showinfo("Saved Config", "Configuration saved to: " + self.config_file)
 			
 	def choose_ioc(self):
 		self.popup = Toplevel()
@@ -642,9 +662,10 @@ class Application(Frame):
 			if parser.has_option("MAIN", "NUMBER_OF_IOCS"):
 				for index in range(int(parser.get("MAIN", "NUMBER_OF_IOCS"))):
 					ioc = parser.get("IOC_" + str(index), "NAME")
+					desc = parser.get("IOC_" + str(index), "DESC")
 					
 					if ioc in ioc_list:
-						self.add_line(ioc, ioc_list[ioc])
+						self.add_line(ioc, ioc_list[ioc], description=desc)
 					else:
 						print("Could not find saved IOC: " + ioc)
 		
