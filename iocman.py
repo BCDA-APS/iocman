@@ -58,7 +58,7 @@ class AliveDB(object):
 	_ALIVEDB_LOC = "/APSshare/bin/alivedb"
 	last_update_all = 0.0
 	
-	def parse(self, input, doprint=False):
+	def parse(self, input, doprint=False, ):
 		data = {}
 		
 		ioc = ""
@@ -95,7 +95,18 @@ class AliveDB(object):
 				
 			elif line_str == "No Environment Variables recorded.":
 				pass
-				
+
+			elif line_str.startswith("Address and Port"):
+				lines += "address_and_port = " + line_str.split("=", 1)[1].strip() + "\n"
+
+			elif line_str.startswith("Incarnation") or line_str.startswith("Reply") or line_str.startswith("Status"):
+				pass
+
+			elif line_str.startswith("Boot Time"):
+				lines += "boot_timestamp = " + line_str.split("=", 1)[1].strip() + "\n"
+
+			elif line_str.startswith("Ping Timestamp"):
+				lines += "ping_timestamp = " + line_str.split("=", 1)[1].strip() + "\n"
 			else:
 				lines += line_str + "\n"
 				
@@ -108,8 +119,7 @@ class AliveDB(object):
 			try:
 				config = configparser.ConfigParser(allow_no_value=True)
 				config.read_string(data[ioc])
-			except:
-				print(data[ioc])
+			except Exception as e:
 				break
 			
 			output[ioc] = {}
@@ -147,7 +157,9 @@ class AliveDB(object):
 		
 	
 	def update(self, ioc):
-		output = subprocess.check_output([self._ALIVEDB_LOC, ioc]).splitlines()
+		output = subprocess.check_output([self._ALIVEDB_LOC, "-d", ioc]).splitlines()
+		
+		output[0] = str.encode(ioc + " (" + self._iocs[ioc]["ip"] + ") 0 - " + self._iocs[ioc]["status"] + "  \n")
 		
 		self._iocs.update(self.parse(output))
 	
@@ -297,7 +309,18 @@ class IOCLine(Frame):
 			self.control.config(text="Stop", fg="red")
 			self.host.config(text=self.hostname)
 		else:
-			self.connection.config(text="Disconnected", fg="red")
+			ping_ts = self.info.get("ping_timestamp", "")
+			boot_ts = self.info.get("boot_timestamp", "")
+			
+			pretty = "Disconnected"
+			
+			if ping_ts and not ping_ts.startswith("1969-12-31"):
+			    pretty = "Last seen: " + ping_ts.split()[0]
+			if boot_ts and not boot_ts.startswith("1969-12-31"):
+			    pretty = "Last seen: " + boot_ts.split()[0]
+				
+			self.connection.config(text=pretty, fg="red")
+
 			self.control.config(text="Start", fg="sea green")
 			self.host.config(text=self.hostname)
 		
@@ -549,6 +572,11 @@ class IOCLine(Frame):
 		self.remove = Button(self, image=remove_icon, command=self.remove_pressed)
 		self.remove.grid(row=0, column=7, padx=(10,5), sticky=NSEW)
 		
+		try:
+			self.info_update()
+		except Exception:
+			pass
+		
 		self.connect()
 		self.update_visual()
 
@@ -675,7 +703,7 @@ class Application(Frame):
 					if self.next_row <= MAX_INITIAL_LENGTH:
 						self.add_line(ioc, ioc_list[ioc])
 					else:
-						message = "More IOCs are availble, truncated results to first " + str(MAX_INITIAL_LENGTH) + "\n\n"
+						message = f"Displaying {min(len(ioc_list), MAX_INITIAL_LENGTH)} of {len(ioc_list)} IOCs\n\n"
 						message += "Create and save a configuration to allow for more IOCs"
 						tkinter.messagebox.showinfo("Truncated IOCS", message)
 						break
