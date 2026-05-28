@@ -763,6 +763,8 @@ class Application(tk.Frame):
 		config = configparser.RawConfigParser()
 		config.add_section("MAIN")
 		config.set("MAIN", "NUMBER_OF_IOCS", str(len(self.lines)))
+		config.set("MAIN", "WINDOW_WIDTH", str(self.winfo_toplevel().winfo_width()))
+		config.set("MAIN", "WINDOW_HEIGHT", str(self.winfo_toplevel().winfo_height()))
 
 		i = 0
 
@@ -876,6 +878,9 @@ class Application(tk.Frame):
 
 		ioc_list = self.iocs.filter(self.subnet)
 
+		saved_width = None
+		saved_height = None
+
 		if not os.path.exists(self.config_folder):
 			os.mkdir(self.config_folder)
 
@@ -892,6 +897,9 @@ class Application(tk.Frame):
 						self.add_line(ioc, ioc_list[ioc], description=desc)
 					else:
 						print("Could not find saved IOC: " + ioc)
+
+			saved_width = parser.get("MAIN", "WINDOW_WIDTH", fallback=None)
+			saved_height = parser.get("MAIN", "WINDOW_HEIGHT", fallback=None)
 
 		else:
 			for ioc in ioc_list:
@@ -913,6 +921,9 @@ class Application(tk.Frame):
 		else:
 			min_height = header_height
 		master.minsize(width=min_width, height=min_height)
+
+		if saved_width and saved_height:
+			master.geometry("{}x{}".format(saved_width, saved_height))
 
 
 if __name__ == "__main__":
