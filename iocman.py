@@ -254,18 +254,19 @@ class LabelLine(tk.Frame):
 		self.name = tk.Label(self, text="IOC Name", width=COLUMN_2_WIDTH)
 		self.name.grid(row=0, column=1, sticky=tk.NSEW)
 
-		label_font = font.Font(self.name, self.name.cget("font"))
-		label_font.configure(underline=True)
-		self.name.configure(font=label_font)
-		self.desc.configure(font=label_font)
+		self.label_font = font.Font(self.name, self.name.cget("font"))
+		self.label_font.configure(underline=True)
+		self.name.configure(font=self.label_font)
+		self.desc.configure(font=self.label_font)
 
 		self.placeholder = tk.Label(self, text="", width=COLUMN_5_WIDTH * 3 + 15)
 		self.placeholder.grid(row=0, column=2, sticky=tk.NSEW)
 
-		self.host = tk.Label(self, text="IOC Host", font=label_font, width=COLUMN_3_WIDTH)
+		self.host = tk.Label(self, text="IOC Host", font=self.label_font, width=COLUMN_3_WIDTH)
 		self.host.grid(row=0, column=3, sticky=tk.NSEW)
+		self.grid_columnconfigure(3, weight=1)
 
-		self.status = tk.Label(self, text="Alive Status", font=label_font, width=COLUMN_4_WIDTH - 4)
+		self.status = tk.Label(self, text="Alive Status", font=self.label_font, width=COLUMN_4_WIDTH - 4)
 		self.status.grid(row=0, column=4, sticky=tk.NSEW)
 
 		self.saveConfig = tk.Button(self, image=save_icon, command=save_func)
@@ -683,6 +684,7 @@ class IOCLine(tk.Frame):
 
 		self.host = tk.Label(self, width=COLUMN_3_WIDTH)
 		self.host.grid(row=0, column=5, sticky=tk.NSEW)
+		self.grid_columnconfigure(5, weight=1)
 
 		self.connection = tk.Label(self, width=COLUMN_4_WIDTH, text="Disconnected", fg="red")
 		self.connection.grid(row=0, column=6, sticky=tk.NSEW)
@@ -715,6 +717,7 @@ class Application(tk.Frame):
 
 	def _on_canvas_configure(self, event):
 		self.canvas.itemconfig(self.canvas_window, width=event.width)
+		self._on_frame_configure()
 
 	def _on_frame_configure(self, event=None):
 		self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -729,6 +732,7 @@ class Application(tk.Frame):
 			self.canvas.yview_scroll(-1, "units")
 		elif event.num == 5:
 			self.canvas.yview_scroll(1, "units")
+
 
 	def _update_canvas_height(self):
 		self.update_idletasks()
@@ -855,6 +859,7 @@ class Application(tk.Frame):
 		self.canvas.configure(yscrollcommand=self.scrollbar.set)
 
 		self.inner_frame = tk.Frame(self.canvas)
+		self.inner_frame.grid_columnconfigure(0, weight=1)
 		self.canvas_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
 
 		self.canvas.grid(row=1, column=0, padx=(0,5), sticky=tk.NSEW)
@@ -899,6 +904,15 @@ class Application(tk.Frame):
 						tkinter.messagebox.showinfo("Truncated IOCS", message)
 						break
 
+		self.update_idletasks()
+		min_width = self.winfo_reqwidth()
+		header_height = self.labels.winfo_reqheight() + 10
+		if self.lines:
+			row_height = self.lines[0].winfo_reqheight() + 5
+			min_height = header_height + row_height * min(len(self.lines), 5)
+		else:
+			min_height = header_height
+		master.minsize(width=min_width, height=min_height)
 
 
 if __name__ == "__main__":
