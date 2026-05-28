@@ -232,10 +232,6 @@ class LabelLine(tk.Frame):
 		self.name.configure(font=label_font)
 		self.desc.configure(font=label_font)
 
-		label_font = font.Font(self.name, self.name.cget("font"))
-		label_font.configure(underline=True)
-		self.name.configure(font=label_font)
-
 		self.host = tk.Label(self, text="IOC Host", font=label_font, width=COLUMN_3_WIDTH)
 		self.host.grid(row=0, column=3, sticky=tk.NSEW)
 
