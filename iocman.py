@@ -259,6 +259,10 @@ class IOCLine(tk.Frame):
 		if self.pv:
 			self.pv.disconnect()
 
+	def is_remote(self):
+		my_name = pwd.getpwuid(os.getuid()).pw_name
+		return self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name
+
 	def connect(self):
 		alive_pv = self.info["PREFIX"].strip() + "alive"
 
@@ -367,11 +371,9 @@ class IOCLine(tk.Frame):
 				return
 
 		if not "PID" in self.info["PROCSERV"]:
-			my_name = pwd.getpwuid(os.getuid()).pw_name
-
-			if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
+			if self.is_remote():
 				ioc_userhost = self.info["user"] + "@" + self.info["hostname"]
-				curr_userhost = my_name + "@" + socket.gethostname()
+				curr_userhost = pwd.getpwuid(os.getuid()).pw_name + "@" + socket.gethostname()
 
 				message = "IOC running as " + ioc_userhost + "\n"
 				message += "but ioc manager running as " + curr_userhost + "\n\n"
@@ -398,11 +400,9 @@ class IOCLine(tk.Frame):
 
 		if not "PID" in self.info["PROCSERV"]:
 			if self.connected:
-				my_name = pwd.getpwuid(os.getuid()).pw_name
-
-				if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
+				if self.is_remote():
 					ioc_userhost = self.info["user"] + "@" + self.info["hostname"]
-					curr_userhost = my_name + "@" + socket.gethostname()
+					curr_userhost = pwd.getpwuid(os.getuid()).pw_name + "@" + socket.gethostname()
 
 					message = "IOC running as " + ioc_userhost + "\n"
 					message += "but ioc manager running as " + curr_userhost + "\n\n"
@@ -531,9 +531,7 @@ class IOCLine(tk.Frame):
 				result = tkinter.messagebox.askokcancel("Remote Disable", message)
 
 				if result:
-					my_name = pwd.getpwuid(os.getuid()).pw_name
-
-					if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
+					if self.is_remote():
 						subprocess.Popen(["xterm", "-T", "Remote Disable", "-e",
 							"ssh", self.info["user"] + "@" + self.info["hostname"], self.script + " remote disable"])
 					else:
@@ -554,9 +552,7 @@ class IOCLine(tk.Frame):
 				tkinter.messagebox.showinfo("Remote Info", message)
 				return
 
-			my_name = pwd.getpwuid(os.getuid()).pw_name
-
-			if self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name:
+			if self.is_remote():
 				subprocess.Popen(["xterm", "-T", "Remote Enable", "-e",
 					"ssh", self.info["user"] + "@" + self.info["hostname"], self.script + " remote enable"])
 			else:
