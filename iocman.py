@@ -272,7 +272,7 @@ class LabelLine(tk.Frame):
 		self.saveConfig.grid(row=0, column=5, sticky=tk.NSEW)
 
 		self.addIOC = tk.Button(self, image=add_icon, command=add_func)
-		self.addIOC.grid(row=0, column=6, padx=(5,0), sticky=tk.NSEW)
+		self.addIOC.grid(row=0, column=6, padx=(5,5), sticky=tk.NSEW)
 
 
 class IOCLine(tk.Frame):
@@ -352,8 +352,8 @@ class IOCLine(tk.Frame):
 		self.pv = PV(alive_pv, connection_callback=self.connection_monitor)
 
 	def info_update(self):
-		self.master.iocs.update(self.info["name"])
-		self.info = self.master.iocs[self.info["name"]]
+		self.app.iocs.update(self.info["name"])
+		self.info = self.app.iocs[self.info["name"]]
 
 		if not self.info or not self.info.get("TOP"):
 			raise Exception("No TOP directory information available for " + (self.info or {}).get("name", "unknown IOC"))
@@ -447,7 +447,7 @@ class IOCLine(tk.Frame):
 		else:
 			self.remote.config(fg="black")
 
-		self.master.after(250, self.update_visual)
+		self.app.after(250, self.update_visual)
 
 	def console_pressed(self):
 		try:
@@ -646,11 +646,12 @@ class IOCLine(tk.Frame):
 
 	def remove_pressed(self):
 		self.disconnect()
-		self.master.remove_line(self)
+		self.app.remove_line(self)
 
-	def __init__(self, master, name, info, description=""):
+	def __init__(self, master, app, name, info, description=""):
 		tk.Frame.__init__(self, master)
 
+		self.app = app
 		self.name = name.strip()
 		self.info = info
 		self.pv = None
@@ -702,6 +703,9 @@ class IOCLine(tk.Frame):
 
 class Application(tk.Frame):
 	def on_exit(self):
+		self.unbind_all("<Button-4>")
+		self.unbind_all("<Button-5>")
+
 		for each in self.lines:
 			each.disconnect()
 
@@ -709,18 +713,47 @@ class Application(tk.Frame):
 
 		self.quit()
 
+	def _on_canvas_configure(self, event):
+		self.canvas.itemconfig(self.canvas_window, width=event.width)
+
+	def _on_frame_configure(self, event=None):
+		self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+		if self.inner_frame.winfo_reqheight() > self.canvas.winfo_height():
+			self.scrollbar.grid(row=1, column=1, sticky="ns")
+		else:
+			self.scrollbar.grid_remove()
+
+	def _on_mousewheel(self, event):
+		if event.num == 4:
+			self.canvas.yview_scroll(-1, "units")
+		elif event.num == 5:
+			self.canvas.yview_scroll(1, "units")
+
+	def _update_canvas_height(self):
+		self.update_idletasks()
+		if self.lines:
+			row_height = self.lines[0].winfo_reqheight() + 5
+			max_visible = min(len(self.lines), MAX_INITIAL_LENGTH)
+			self.canvas.configure(height=row_height * max_visible)
+		else:
+			self.canvas.configure(height=0)
+		self.update_idletasks()
+		self._on_frame_configure()
 
 	def add_line(self, ioc, info, description=""):
-		self.lines.append(IOCLine(self, ioc, info, description=description))
+		self.lines.append(IOCLine(self.inner_frame, self, ioc, info, description=description))
 		self.next_row = self.next_row + 1
 
 		self.lines[len(self.lines) - 1].grid(row=self.next_row, column=0, pady=(0,5), sticky=tk.NSEW)
+		self._update_canvas_height()
 
 	def remove_line(self, line):
 		index = self.lines.index(line)
 
 		self.lines.remove(line)
 		line.grid_remove()
+		self._update_canvas_height()
 
 	def save_config(self, pop_up=True):
 		config = configparser.RawConfigParser()
@@ -817,7 +850,23 @@ class Application(tk.Frame):
 		self.labels = LabelLine(self, save_func=self.save_config, add_func=self.choose_ioc)
 		self.labels.grid(row=0, column=0, pady=(5,5), sticky=tk.NSEW)
 
-		self.next_row = 1
+		self.canvas = tk.Canvas(self, highlightthickness=0)
+		self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+		self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+		self.inner_frame = tk.Frame(self.canvas)
+		self.canvas_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+
+		self.canvas.grid(row=1, column=0, padx=(0,5), sticky=tk.NSEW)
+		self.grid_rowconfigure(1, weight=1)
+		self.grid_columnconfigure(0, weight=1)
+
+		self.canvas.bind("<Configure>", self._on_canvas_configure)
+		self.inner_frame.bind("<Configure>", self._on_frame_configure)
+		self.bind_all("<Button-4>", self._on_mousewheel)
+		self.bind_all("<Button-5>", self._on_mousewheel)
+
+		self.next_row = 0
 		self.lines = []
 
 		ioc_list = self.iocs.filter(self.subnet)
@@ -851,6 +900,7 @@ class Application(tk.Frame):
 						break
 
 
+
 if __name__ == "__main__":
 	master = tk.Tk()
 
@@ -860,6 +910,6 @@ if __name__ == "__main__":
 	remove_icon = tk.PhotoImage(data="R0lGODlhEAAQAMZrAMYJCbAPD8gJCccKCbMQD8cNDcQODcUODckNDb4TEtYNDcQSEtcNDdgNDcYSEb8UE74XFr8XFtQSEccXFtYTEsgXFtcTEtgTEdgTEr8aGcAaGbIgH7AhIdIYF9MYF78eHcwbGsEeHdgYF9oYF8wcGtkZGLMlJNMdHNQdHNoeHdseHdseHtUiINYiIdskItwkItcoJdgoJt0qJ9QtK781M9AxL9EyL7k5N8E3Nd4wLc80Mro6ONA1M884NtE5Nt82Mt82M+A3NL9BQMBCQNM9OtU+OuE7N+I7N8ZDQcdDQd0+Ot4+O8RFROM9OcZGRMVHRcZIReRAPOJBPcVJSORBPcdKSORDP+VDP91HRd5HRORGQuZGQuZJRedJRd1OS+ZMR95OS+dMR+dMSORPS+ZRTN5TUOBTUOBWUuJXU+ZYU+hZVP///////////////////////////////////////////////////////////////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAevgH9/N0OChoZCO4Y0aWhVh4JTZ2o4fxxjYWFmUIdPZWJfZCZ/RFxaW2BOgkxeW1pdRYY9VlJRWUlIWFRSVz6QOk1GR0tKR0ZNPJCCNUFAP0BAQTbKhjM51zkzG9R/HzAy4DIxIdQZLC8u6S4vLRqQECcrKSokICrzKBGGCR0lIiMVBE0YIaKEhwd/AkiwQAGDg0MLLlCwIIHAnwINGBxQZkABAwSGBgjgBmAkt5OBAAA7")
 
 	app = Application(master=master)
-	app.pack()
+	app.pack(fill=tk.BOTH, expand=True)
 	app.mainloop()
 
