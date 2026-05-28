@@ -232,14 +232,14 @@ class LabelLine(tk.Frame):
 		self.name.configure(font=label_font)
 		self.desc.configure(font=label_font)
 
+		self.placeholder = tk.Label(self, text="", width=COLUMN_5_WIDTH * 3 + 15)
+		self.placeholder.grid(row=0, column=2, sticky=tk.NSEW)
+
 		self.host = tk.Label(self, text="IOC Host", font=label_font, width=COLUMN_3_WIDTH)
 		self.host.grid(row=0, column=3, sticky=tk.NSEW)
 
 		self.status = tk.Label(self, text="Alive Status", font=label_font, width=COLUMN_4_WIDTH - 4)
 		self.status.grid(row=0, column=4, sticky=tk.NSEW)
-
-		self.placeholder = tk.Label(self, text="", width=COLUMN_5_WIDTH * 3 + 15)
-		self.placeholder.grid(row=0, column=2, sticky=tk.NSEW)
 
 		self.saveConfig = tk.Button(self, image=save_icon, command=save_func)
 		self.saveConfig.grid(row=0, column=5, sticky=tk.NSEW)
@@ -650,25 +650,41 @@ class Application(tk.Frame):
 			if pop_up:
 				tkinter.messagebox.showinfo("Saved Config", "Configuration saved to: " + self.config_file)
 
+	def filter_ioc_list(self, *args):
+		filter_text = self.popup_filter_var.get().lower()
+
+		self.popup_list.delete(0, tk.END)
+
+		for name in sorted(self.popup_ioc_list.keys()):
+			if filter_text in name.lower():
+				self.popup_list.insert(tk.END, name)
+
 	def choose_ioc(self):
 		self.popup = tk.Toplevel()
 		self.popup.wm_title("Add IOC")
 
 		self.iocs.update_all()
 
-		ioc_list = self.iocs.filter(self.subnet)
+		self.popup_ioc_list = self.iocs.filter(self.subnet)
+
+		self.popup_filter_var = tk.StringVar()
+		self.popup_filter_var.trace_add("write", self.filter_ioc_list)
+
+		self.popup_filter = tk.Entry(self.popup, textvariable=self.popup_filter_var)
+		self.popup_filter.grid(row=0, column=0, padx=(10,10), pady=(10,5), sticky=tk.NSEW)
 
 		self.popup_list = tk.Listbox(self.popup, height=10)
 
-		for item in ioc_list:
+		for item in sorted(self.popup_ioc_list.keys()):
 			self.popup_list.insert(tk.END, item)
 
-		self.popup_list.grid(row=0, column=0, padx=(10,10), pady=(10,5))
-
+		self.popup_list.grid(row=1, column=0, padx=(10,10), pady=(0,5), sticky=tk.NSEW)
+		self.popup_list.bind("<Double-1>", lambda e: self.ioc_chosen())
 
 		self.popup_add = tk.Button(self.popup, text="Add", command=self.ioc_chosen)
-		self.popup_add.grid(row=1, column=0, pady=(0,10))
+		self.popup_add.grid(row=2, column=0, pady=(0,10))
 
+		self.popup_filter.focus_set()
 		self.popup.grab_set()
 
 	def ioc_chosen(self):
@@ -679,13 +695,16 @@ class Application(tk.Frame):
 
 		ioc_name = self.popup_list.get(selection[0])
 
-		self.add_line(ioc_name, self.iocs[ioc_name])
+		self.add_line(ioc_name, self.popup_ioc_list[ioc_name])
 
 		self.popup.grab_release()
 		self.popup.destroy()
 		self.popup = None
 		self.popup_list = None
 		self.popup_add = None
+		self.popup_filter = None
+		self.popup_filter_var = None
+		self.popup_ioc_list = None
 
 	def __init__(self, master=None):
 		tk.Frame.__init__(self, master)
