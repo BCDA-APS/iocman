@@ -259,6 +259,18 @@ class IOCLine(tk.Frame):
 		my_name = pwd.getpwuid(os.getuid()).pw_name
 		return self.info["hostname"] != socket.gethostname() or self.info["user"] != my_name
 
+	def run_command(self, title, *args, interactive=True):
+		if self.is_remote():
+			userhost = self.info["user"] + "@" + self.info["hostname"]
+			remote_cmd = self.script + " " + " ".join(args)
+			subprocess.Popen(["xterm", "-T", title, "-e",
+				"ssh", "-o", "ConnectTimeout=5", userhost, remote_cmd])
+		elif interactive:
+			subprocess.Popen(["xterm", "-T", title, "-e",
+				self.script] + list(args))
+		else:
+			subprocess.Popen([self.script] + list(args))
+
 	def connect(self):
 		alive_pv = self.info["PREFIX"].strip() + "alive"
 
@@ -378,11 +390,10 @@ class IOCLine(tk.Frame):
 				response = tkinter.messagebox.askokcancel("Console", message)
 
 				if response:
-					subprocess.Popen(["xterm", "-T", self.info["name"] + " console", "-e",
-						"ssh", self.info["user"] + "@" + self.info["hostname"], self.script + " console"])
+					self.run_command(self.info["name"] + " console", "console")
 				return
 
-		subprocess.Popen(["xterm", "-T", self.info["name"] + " console", "-e", self.script, "console"])
+		self.run_command(self.info["name"] + " console", "console")
 
 
 	def start_pressed(self):
@@ -407,8 +418,7 @@ class IOCLine(tk.Frame):
 					response = tkinter.messagebox.askokcancel("Start/Stop", message)
 
 					if response:
-						subprocess.Popen(["xterm", "-T", "Stop IOC", "-e",
-							"ssh", self.info["user"] + "@" + self.info["hostname"], self.script + " stop"])
+						self.run_command("Stop IOC", "stop")
 					return
 
 		else:
@@ -447,7 +457,7 @@ class IOCLine(tk.Frame):
 			response = tkinter.messagebox.askokcancel("Start/Stop", message.format(action))
 
 			if response:
-				subprocess.Popen([self.script, action])
+				self.run_command("Start/Stop IOC", action, interactive=False)
 
 
 	def remote_pressed(self):
@@ -527,11 +537,7 @@ class IOCLine(tk.Frame):
 				result = tkinter.messagebox.askokcancel("Remote Disable", message)
 
 				if result:
-					if self.is_remote():
-						subprocess.Popen(["xterm", "-T", "Remote Disable", "-e",
-							"ssh", self.info["user"] + "@" + self.info["hostname"], self.script + " remote disable"])
-					else:
-						subprocess.Popen(["xterm", "-T", "Remote Disable", "-e", self.script, "remote", "disable"])
+					self.run_command("Remote Disable", "remote", "disable")
 			return
 
 
@@ -548,11 +554,7 @@ class IOCLine(tk.Frame):
 				tkinter.messagebox.showinfo("Remote Info", message)
 				return
 
-			if self.is_remote():
-				subprocess.Popen(["xterm", "-T", "Remote Enable", "-e",
-					"ssh", self.info["user"] + "@" + self.info["hostname"], self.script + " remote enable"])
-			else:
-				subprocess.Popen(["xterm", "-T", "Remote Enable", "-e", self.script, "remote", "enable"])
+			self.run_command("Remote Enable", "remote", "enable")
 
 
 	def remove_pressed(self):
