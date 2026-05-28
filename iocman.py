@@ -6,6 +6,7 @@ import pwd
 import glob
 import time
 import socket
+import threading
 
 import os.path
 
@@ -217,6 +218,32 @@ class AliveDB(object):
 		return output
 
 
+class Tooltip:
+	def __init__(self, widget, text_func):
+		self.widget = widget
+		self.text_func = text_func
+		self.tip = None
+		widget.bind("<Enter>", self.show)
+		widget.bind("<Leave>", self.hide)
+
+	def show(self, event):
+		text = self.text_func()
+		if not text:
+			return
+		x, y = event.x_root + 10, event.y_root + 10
+		self.tip = tk.Toplevel(self.widget)
+		self.tip.wm_overrideredirect(True)
+		self.tip.wm_geometry("+{}+{}".format(x, y))
+		label = tk.Label(self.tip, text=text, background="#ffffe0",
+			relief="solid", borderwidth=1, justify=tk.LEFT)
+		label.pack()
+
+	def hide(self, event):
+		if self.tip:
+			self.tip.destroy()
+			self.tip = None
+
+
 class LabelLine(tk.Frame):
 	def __init__(self, master, save_func=None, add_func=None):
 		tk.Frame.__init__(self, master)
@@ -270,6 +297,54 @@ class IOCLine(tk.Frame):
 				self.script] + list(args))
 		else:
 			subprocess.Popen([self.script] + list(args))
+
+	def _check_remote_thread(self):
+		try:
+			if not self.info or not self.info.get("TOP"):
+				self.remote_status = "none"
+				return
+
+			command_check = glob.glob(self.info["TOP"] + "/iocBoot/ioc*/softioc/" + self.info["name"] + "-command.txt")
+
+			if len(command_check) != 1:
+				self.command_file = None
+				self.remote_status = "none"
+				return
+
+			self.command_file = command_check[0]
+
+			with open(self.command_file) as info:
+				self.command_pid = info.readline().strip().split(":")[1]
+				parts = info.readline().strip().split(":")
+				self.command_tcp, self.command_host = parts[0], parts[1]
+				self.command_port = int(parts[2])
+
+			if check_port(self.command_host, self.command_port):
+				self.remote_status = "active"
+			else:
+				self.remote_status = "stale"
+		except Exception:
+			self.remote_status = "none"
+		finally:
+			self._remote_check_running = False
+
+	def update_remote_status(self):
+		if self._remote_check_running:
+			return
+
+		self._remote_check_running = True
+		t = threading.Thread(target=self._check_remote_thread, daemon=True)
+		t.start()
+
+	def remote_tooltip_text(self):
+		if self.remote_status == "none":
+			return "No remote control configured"
+		elif self.remote_status == "active":
+			return "Remote active\nPID: {}\nHost: {}\nPort: {}".format(
+				self.command_pid, self.command_host, str(self.command_port))
+		else:
+			return "Remote control stale\nPID: {}\nHost: {}\nPort: {}".format(
+				self.command_pid, self.command_host, str(self.command_port))
 
 	def connect(self):
 		alive_pv = self.info["PREFIX"].strip() + "alive"
@@ -359,6 +434,18 @@ class IOCLine(tk.Frame):
 
 			self.control.config(text="Start", fg="sea green")
 			self.host.config(text=self.hostname)
+
+		self.visual_cycle += 1
+		if self.visual_cycle >= 20:
+			self.visual_cycle = 0
+			self.update_remote_status()
+
+		if self.remote_status == "active":
+			self.remote.config(fg="sea green")
+		elif self.remote_status == "stale":
+			self.remote.config(fg="orange")
+		else:
+			self.remote.config(fg="black")
 
 		self.master.after(250, self.update_visual)
 
@@ -570,6 +657,9 @@ class IOCLine(tk.Frame):
 		self.hostname = ""
 		self.connected = False
 		self.destroyed = False
+		self.remote_status = "none"
+		self._remote_check_running = False
+		self.visual_cycle = 0
 
 		self.description = tk.StringVar()
 		self.description.set(description)
@@ -582,6 +672,7 @@ class IOCLine(tk.Frame):
 
 		self.remote = tk.Button(self, width=COLUMN_5_WIDTH, text="Remote", command=self.remote_pressed)
 		self.remote.grid(row=0, column=2, padx=(0,5), sticky=tk.NSEW)
+		Tooltip(self.remote, self.remote_tooltip_text)
 
 		self.control = tk.Button(self, width=COLUMN_5_WIDTH, text="Start", command=self.start_pressed, fg="sea green")
 		self.control.grid(row=0, column=3, padx=(0,5), sticky=tk.NSEW)
@@ -603,6 +694,7 @@ class IOCLine(tk.Frame):
 		except Exception:
 			pass
 
+		self.update_remote_status()
 		self.connect()
 		self.update_visual()
 
