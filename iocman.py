@@ -3,18 +3,15 @@
 import os
 import re
 import pwd
-import sys
-import copy
 import glob
 import time
 import socket
-import pprint
 
 import os.path
 
 import configparser
 
-from tkinter import *
+import tkinter as tk
 from tkinter import font
 import tkinter.messagebox
 
@@ -22,11 +19,11 @@ from epics import PV
 
 import subprocess
 
-master = Tk()
-reload_icon = PhotoImage(data="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw1AUhU9bpSIVETuIiGRoO1kQFXHUKhShQqgVWnUweekfNGlIUlwcBdeCgz+LVQcXZ10dXAVB8AfEXXBSdJES70sKLWK88Hgf591zeO8+wN+oMNXsGgdUzTLSyYSQza0KwVf4MIoBRBGTmKnPiWIKnvV1T91Ud3Ge5d33Z/UpeZMBPoF4lumGRbxBPL1p6Zz3icOsJCnE58RjBl2Q+JHrsstvnIsO+3lm2Mik54nDxEKxg+UOZiVDJZ4ijiiqRvn+rMsK5y3OaqXGWvfkLwzltZVlrtMaQRKLWIIIATJqKKMCC3HaNVJMpOk84eEfdvwiuWRylcHIsYAqVEiOH/wPfs/WLExOuEmhBND9YtsfUSC4CzTrtv19bNvNEyDwDFxpbX+1Acx8kl5va5EjoH8buLhua/IecLkDDD3pkiE5UoCWv1AA3s/om3LA4C3Qu+bOrXWO0wcgQ7NK3QAHh0CsSNnrHu/u6Zzbvz2t+f0AqhtyvUx7a90AAAAGYktHRAD/AP8A/6C9p5MAAAAJcEhZcwAADdcAAA3XAUIom3gAAAAHdElNRQfpAR4RKRw9muMVAAABKklEQVQ4y6XTvS6EURAG4OdbywWIREGC+CkUGhp/N6Gg0OAClGoleu0KhcYFiAYJLReA+Alb6FiFAt9qRnLy2d1IvMnJOZkzc2be98xkfqOMAcygH194wHnsn1pgEDt4C8d6rE+8Yjd8GmIKV8gjKMdHrNR2h+mI6ciSzEex11HFPi4iaByL6EWGWyxh9YfzTjjmOAnuWVJdFrbjpJr3OBsOznU8hmMzjOA50SaHlRApx0Yhc4oeHBTEzUvoQ1t812VcFNGGOYwmooKSv+EL25jAJNZwiBdYTihstqBQRDu6YQi1KP0purAZGlZcRiX5ntN4pFQIHMA6Opu18E2i7hO2MI+FOFdDi0N0/aeVrzHWapgqoUlxmGrYKw5T1kSTfsxGj8A9zhqN8zen8GbXeKR36AAAAABJRU5ErkJggg==")
-save_icon   = PhotoImage(data="R0lGODlhEAAQAMZ5ADNkpDZmpTpqp0Nwq1V4qVJ5rU96sFl5plh+r16ArlmBtWCCr2SCrGKDr2GDsmOEsoGBgWOFsl+GuGOGtWWGsmaHtWyHr2qJtWaLu2yKtWeMu2mMuW2RvnSRuY6OjnWTu5KSknSXwpOTkpOTk3mXwJSUlHmYwJWVlXqaw5eXl5mZmYicuZ2dnYWkyaGhoZGjvaSkpJimuqampqenp6ioqJyqvampqaqqqqurq6ysrK2tra6urq+vr7CwsLGxsbKysrW1ta63wq23xba2tri4uLK5w7m5ubu7u729vb6+vr++vcDAwMDBwsLCwsPDw8TExMXFxcHGzsbGxsjIyMPJ0cfJzMrKysvLy8vLzczMzMvN0c3Nzc3Nzs/Pz9HR0dPS0NbV1NbW1dbW1tjY2NXZ3dnZ2drZ2NrZ2dra2tvb293b2t3d3eDd2t/f3+Dg4OHh4eLh4OLi4uPk5eTk5OXk5OXl5ebl5eXm5ubm5v///////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAe6gH+Cg4SFhRQfFwSGhRkmJC0oCYyGDCEblIJKamwvHBgrXF9MhlUWEQ8aEhMVB1oihD50ZB0KBgMCDlRmRoRLdXBRCwEACEJnaFeEYmtiYEUNBTFZXmNdNII3cWttaF5BNVhhaWVjQ4JQc21ucXh3cnZva2ltToJIW1ZTUk9NS0lIjhAhAkMQEBwpXNjQsePGjh40eOgYYZBIDhw8fPjQ4eMHDh88TghKIWMGDBYqUpQoAcKDSwiZKAUCADs=")
-add_icon    = PhotoImage(data="R0lGODlhEAAQAMZsAA4TNRMZPxQaQxYbRRccSRceSxgeThshUxsiVBwjXR4lYR8lXx4lYyAmWx8nZh8naSAoaSMpWSIpbCQqZSQrYyQrZSUrYyUrZiUsZiYsaCYsaiYtaiYtayYtbCkvZSgvbicvcikvbykwcCkwcykxdCoxdSoxdioxdy0zbC0zbi00cC00dC40ci01dS41fS01gy82fi42hS83gC83gjA3gC83gy83hTA4hzU8hj1EkD1FlkJJmlRdyVVeyFVey1Zfyldfylhgy1hhy1pizVpjzFtkzlxkzl1l0F1mz15mz15m0F5m0V5n0V9nz19n0F9n0l9n02Bo0GBo0WBo0mBo02Fp0WFp0mNr02Nr1WRs1GRs1WVt1WVt1mZu1mdu1mdu12hv12hv2Gdw2Whw12px2Wtz2mxz2m103G5122923XF43XN64f///////////////////////////////////////////////////////////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAeFgH+Cg38xL4SIhC8+PA+JiTY/QBCPiDVBQg6VhDNDRAybgzJFRgqPICYlJSQ6SU44IiEhHxN/LlBLTE9TUk1RVlhcXF1iCDRMTk5SUlXNV1lbW11gDX8LHRwbGjvPORgVFhYHjythYwWhgixkZATpfyplZgPvKWdoAu8ea2oA738RIjwKBAA7")
-remove_icon = PhotoImage(data="R0lGODlhEAAQAMZrAMYJCbAPD8gJCccKCbMQD8cNDcQODcUODckNDb4TEtYNDcQSEtcNDdgNDcYSEb8UE74XFr8XFtQSEccXFtYTEsgXFtcTEtgTEdgTEr8aGcAaGbIgH7AhIdIYF9MYF78eHcwbGsEeHdgYF9oYF8wcGtkZGLMlJNMdHNQdHNoeHdseHdseHtUiINYiIdskItwkItcoJdgoJt0qJ9QtK781M9AxL9EyL7k5N8E3Nd4wLc80Mro6ONA1M884NtE5Nt82Mt82M+A3NL9BQMBCQNM9OtU+OuE7N+I7N8ZDQcdDQd0+Ot4+O8RFROM9OcZGRMVHRcZIReRAPOJBPcVJSORBPcdKSORDP+VDP91HRd5HRORGQuZGQuZJRedJRd1OS+ZMR95OS+dMR+dMSORPS+ZRTN5TUOBTUOBWUuJXU+ZYU+hZVP///////////////////////////////////////////////////////////////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAevgH9/N0OChoZCO4Y0aWhVh4JTZ2o4fxxjYWFmUIdPZWJfZCZ/RFxaW2BOgkxeW1pdRYY9VlJRWUlIWFRSVz6QOk1GR0tKR0ZNPJCCNUFAP0BAQTbKhjM51zkzG9R/HzAy4DIxIdQZLC8u6S4vLRqQECcrKSokICrzKBGGCR0lIiMVBE0YIaKEhwd/AkiwQAGDg0MLLlCwIIHAnwINGBxQZkABAwSGBgjgBmAkt5OBAAA7")
+master = tk.Tk()
+reload_icon = tk.PhotoImage(data="iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw1AUhU9bpSIVETuIiGRoO1kQFXHUKhShQqgVWnUweekfNGlIUlwcBdeCgz+LVQcXZ10dXAVB8AfEXXBSdJES70sKLWK88Hgf591zeO8+wN+oMNXsGgdUzTLSyYSQza0KwVf4MIoBRBGTmKnPiWIKnvV1T91Ud3Ge5d33Z/UpeZMBPoF4lumGRbxBPL1p6Zz3icOsJCnE58RjBl2Q+JHrsstvnIsO+3lm2Mik54nDxEKxg+UOZiVDJZ4ijiiqRvn+rMsK5y3OaqXGWvfkLwzltZVlrtMaQRKLWIIIATJqKKMCC3HaNVJMpOk84eEfdvwiuWRylcHIsYAqVEiOH/wPfs/WLExOuEmhBND9YtsfUSC4CzTrtv19bNvNEyDwDFxpbX+1Acx8kl5va5EjoH8buLhua/IecLkDDD3pkiE5UoCWv1AA3s/om3LA4C3Qu+bOrXWO0wcgQ7NK3QAHh0CsSNnrHu/u6Zzbvz2t+f0AqhtyvUx7a90AAAAGYktHRAD/AP8A/6C9p5MAAAAJcEhZcwAADdcAAA3XAUIom3gAAAAHdElNRQfpAR4RKRw9muMVAAABKklEQVQ4y6XTvS6EURAG4OdbywWIREGC+CkUGhp/N6Gg0OAClGoleu0KhcYFiAYJLReA+Alb6FiFAt9qRnLy2d1IvMnJOZkzc2be98xkfqOMAcygH194wHnsn1pgEDt4C8d6rE+8Yjd8GmIKV8gjKMdHrNR2h+mI6ciSzEex11HFPi4iaByL6EWGWyxh9YfzTjjmOAnuWVJdFrbjpJr3OBsOznU8hmMzjOA50SaHlRApx0Yhc4oeHBTEzUvoQ1t812VcFNGGOYwmooKSv+EL25jAJNZwiBdYTihstqBQRDu6YQi1KP0purAZGlZcRiX5ntN4pFQIHMA6Opu18E2i7hO2MI+FOFdDi0N0/aeVrzHWapgqoUlxmGrYKw5T1kSTfsxGj8A9zhqN8zen8GbXeKR36AAAAABJRU5ErkJggg==")
+save_icon   = tk.PhotoImage(data="R0lGODlhEAAQAMZ5ADNkpDZmpTpqp0Nwq1V4qVJ5rU96sFl5plh+r16ArlmBtWCCr2SCrGKDr2GDsmOEsoGBgWOFsl+GuGOGtWWGsmaHtWyHr2qJtWaLu2yKtWeMu2mMuW2RvnSRuY6OjnWTu5KSknSXwpOTkpOTk3mXwJSUlHmYwJWVlXqaw5eXl5mZmYicuZ2dnYWkyaGhoZGjvaSkpJimuqampqenp6ioqJyqvampqaqqqqurq6ysrK2tra6urq+vr7CwsLGxsbKysrW1ta63wq23xba2tri4uLK5w7m5ubu7u729vb6+vr++vcDAwMDBwsLCwsPDw8TExMXFxcHGzsbGxsjIyMPJ0cfJzMrKysvLy8vLzczMzMvN0c3Nzc3Nzs/Pz9HR0dPS0NbV1NbW1dbW1tjY2NXZ3dnZ2drZ2NrZ2dra2tvb293b2t3d3eDd2t/f3+Dg4OHh4eLh4OLi4uPk5eTk5OXk5OXl5ebl5eXm5ubm5v///////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAe6gH+Cg4SFhRQfFwSGhRkmJC0oCYyGDCEblIJKamwvHBgrXF9MhlUWEQ8aEhMVB1oihD50ZB0KBgMCDlRmRoRLdXBRCwEACEJnaFeEYmtiYEUNBTFZXmNdNII3cWttaF5BNVhhaWVjQ4JQc21ucXh3cnZva2ltToJIW1ZTUk9NS0lIjhAhAkMQEBwpXNjQsePGjh40eOgYYZBIDhw8fPjQ4eMHDh88TghKIWMGDBYqUpQoAcKDSwiZKAUCADs=")
+add_icon    = tk.PhotoImage(data="R0lGODlhEAAQAMZsAA4TNRMZPxQaQxYbRRccSRceSxgeThshUxsiVBwjXR4lYR8lXx4lYyAmWx8nZh8naSAoaSMpWSIpbCQqZSQrYyQrZSUrYyUrZiUsZiYsaCYsaiYtaiYtayYtbCkvZSgvbicvcikvbykwcCkwcykxdCoxdSoxdioxdy0zbC0zbi00cC00dC40ci01dS41fS01gy82fi42hS83gC83gjA3gC83gy83hTA4hzU8hj1EkD1FlkJJmlRdyVVeyFVey1Zfyldfylhgy1hhy1pizVpjzFtkzlxkzl1l0F1mz15mz15m0F5m0V5n0V9nz19n0F9n0l9n02Bo0GBo0WBo0mBo02Fp0WFp0mNr02Nr1WRs1GRs1WVt1WVt1mZu1mdu1mdu12hv12hv2Gdw2Whw12px2Wtz2mxz2m103G5122923XF43XN64f///////////////////////////////////////////////////////////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAeFgH+Cg38xL4SIhC8+PA+JiTY/QBCPiDVBQg6VhDNDRAybgzJFRgqPICYlJSQ6SU44IiEhHxN/LlBLTE9TUk1RVlhcXF1iCDRMTk5SUlXNV1lbW11gDX8LHRwbGjvPORgVFhYHjythYwWhgixkZATpfyplZgPvKWdoAu8ea2oA738RIjwKBAA7")
+remove_icon = tk.PhotoImage(data="R0lGODlhEAAQAMZrAMYJCbAPD8gJCccKCbMQD8cNDcQODcUODckNDb4TEtYNDcQSEtcNDdgNDcYSEb8UE74XFr8XFtQSEccXFtYTEsgXFtcTEtgTEdgTEr8aGcAaGbIgH7AhIdIYF9MYF78eHcwbGsEeHdgYF9oYF8wcGtkZGLMlJNMdHNQdHNoeHdseHdseHtUiINYiIdskItwkItcoJdgoJt0qJ9QtK781M9AxL9EyL7k5N8E3Nd4wLc80Mro6ONA1M884NtE5Nt82Mt82M+A3NL9BQMBCQNM9OtU+OuE7N+I7N8ZDQcdDQd0+Ot4+O8RFROM9OcZGRMVHRcZIReRAPOJBPcVJSORBPcdKSORDP+VDP91HRd5HRORGQuZGQuZJRedJRd1OS+ZMR95OS+dMR+dMSORPS+ZRTN5TUOBTUOBWUuJXU+ZYU+hZVP///////////////////////////////////////////////////////////////////////////////////yH5BAEKAH8ALAAAAAAQABAAAAevgH9/N0OChoZCO4Y0aWhVh4JTZ2o4fxxjYWFmUIdPZWJfZCZ/RFxaW2BOgkxeW1pdRYY9VlJRWUlIWFRSVz6QOk1GR0tKR0ZNPJCCNUFAP0BAQTbKhjM51zkzG9R/HzAy4DIxIdQZLC8u6S4vLRqQECcrKSokICrzKBGGCR0lIiMVBE0YIaKEhwd/AkiwQAGDg0MLLlCwIIHAnwINGBxQZkABAwSGBgjgBmAkt5OBAAA7")
 
 COLUMN_1_WIDTH=25
 COLUMN_2_WIDTH=25
@@ -225,15 +222,15 @@ class AliveDB(object):
 		return output
 
 
-class LabelLine(Frame):
+class LabelLine(tk.Frame):
 	def __init__(self, master, save_func=None, add_func=None):
-		Frame.__init__(self, master)
+		tk.Frame.__init__(self, master)
 
-		self.desc = Label(self, text="Description", width=COLUMN_1_WIDTH)
-		self.desc.grid(row=0, column=0, padx=(5,0), sticky=NSEW)
+		self.desc = tk.Label(self, text="Description", width=COLUMN_1_WIDTH)
+		self.desc.grid(row=0, column=0, padx=(5,0), sticky=tk.NSEW)
 
-		self.name = Label(self, text="IOC Name", width=COLUMN_2_WIDTH)
-		self.name.grid(row=0, column=1, sticky=NSEW)
+		self.name = tk.Label(self, text="IOC Name", width=COLUMN_2_WIDTH)
+		self.name.grid(row=0, column=1, sticky=tk.NSEW)
 
 		label_font = font.Font(self.name, self.name.cget("font"))
 		label_font.configure(underline=True)
@@ -244,23 +241,23 @@ class LabelLine(Frame):
 		label_font.configure(underline=True)
 		self.name.configure(font=label_font)
 
-		self.host = Label(self, text="IOC Host", font=label_font, width=COLUMN_3_WIDTH)
-		self.host.grid(row=0, column=3, sticky=NSEW)
+		self.host = tk.Label(self, text="IOC Host", font=label_font, width=COLUMN_3_WIDTH)
+		self.host.grid(row=0, column=3, sticky=tk.NSEW)
 
-		self.status = Label(self, text="Alive Status", font=label_font, width=COLUMN_4_WIDTH - 4)
-		self.status.grid(row=0, column=4, sticky=NSEW)
+		self.status = tk.Label(self, text="Alive Status", font=label_font, width=COLUMN_4_WIDTH - 4)
+		self.status.grid(row=0, column=4, sticky=tk.NSEW)
 
-		self.placeholder = Label(self, text="", width=COLUMN_5_WIDTH * 3 + 15)
-		self.placeholder.grid(row=0, column=2, sticky=NSEW)
+		self.placeholder = tk.Label(self, text="", width=COLUMN_5_WIDTH * 3 + 15)
+		self.placeholder.grid(row=0, column=2, sticky=tk.NSEW)
 
-		self.saveConfig = Button(self, image=save_icon, command=save_func)
-		self.saveConfig.grid(row=0, column=5, sticky=NSEW)
+		self.saveConfig = tk.Button(self, image=save_icon, command=save_func)
+		self.saveConfig.grid(row=0, column=5, sticky=tk.NSEW)
 
-		self.addIOC = Button(self, image=add_icon, command=add_func)
-		self.addIOC.grid(row=0, column=6, padx=(5,0), sticky=NSEW)
+		self.addIOC = tk.Button(self, image=add_icon, command=add_func)
+		self.addIOC.grid(row=0, column=6, padx=(5,0), sticky=tk.NSEW)
 
 
-class IOCLine(Frame):
+class IOCLine(tk.Frame):
 
 	def disconnect(self):
 		self.destroyed = True
@@ -576,7 +573,7 @@ class IOCLine(Frame):
 		self.master.remove_line(self)
 
 	def __init__(self, master, name, info, description=""):
-		Frame.__init__(self, master)
+		tk.Frame.__init__(self, master)
 
 		self.name = name.strip()
 		self.info = info
@@ -585,32 +582,32 @@ class IOCLine(Frame):
 		self.connected = False
 		self.destroyed = False
 
-		self.description = tkinter.StringVar()
+		self.description = tk.StringVar()
 		self.description.set(description)
 
-		self.desc = Entry(self, width=COLUMN_1_WIDTH, textvariable=self.description)
-		self.desc.grid(row=0, column=0, padx=(5,0), sticky=NSEW)
+		self.desc = tk.Entry(self, width=COLUMN_1_WIDTH, textvariable=self.description)
+		self.desc.grid(row=0, column=0, padx=(5,0), sticky=tk.NSEW)
 
-		self.index = Label(self, width=COLUMN_2_WIDTH, text=self.name)
-		self.index.grid(row=0, column=1, sticky=NSEW)
+		self.index = tk.Label(self, width=COLUMN_2_WIDTH, text=self.name)
+		self.index.grid(row=0, column=1, sticky=tk.NSEW)
 
-		self.remote = Button(self, width=COLUMN_5_WIDTH, text="Remote", command=self.remote_pressed)
-		self.remote.grid(row=0, column=2, padx=(0,5), sticky=NSEW)
+		self.remote = tk.Button(self, width=COLUMN_5_WIDTH, text="Remote", command=self.remote_pressed)
+		self.remote.grid(row=0, column=2, padx=(0,5), sticky=tk.NSEW)
 
-		self.control = Button(self, width=COLUMN_5_WIDTH, text="Start", command=self.start_pressed, fg="sea green")
-		self.control.grid(row=0, column=3, padx=(0,5), sticky=NSEW)
+		self.control = tk.Button(self, width=COLUMN_5_WIDTH, text="Start", command=self.start_pressed, fg="sea green")
+		self.control.grid(row=0, column=3, padx=(0,5), sticky=tk.NSEW)
 
-		self.console = Button(self, width=COLUMN_5_WIDTH, text="Console", command=self.console_pressed)
-		self.console.grid(row=0, column=4, sticky=NSEW)
+		self.console = tk.Button(self, width=COLUMN_5_WIDTH, text="Console", command=self.console_pressed)
+		self.console.grid(row=0, column=4, sticky=tk.NSEW)
 
-		self.host = Label(self, width=COLUMN_3_WIDTH)
-		self.host.grid(row=0, column=5, sticky=NSEW)
+		self.host = tk.Label(self, width=COLUMN_3_WIDTH)
+		self.host.grid(row=0, column=5, sticky=tk.NSEW)
 
-		self.connection = Label(self, width=COLUMN_4_WIDTH, text="Disconnected", fg="red")
-		self.connection.grid(row=0, column=6, sticky=NSEW)
+		self.connection = tk.Label(self, width=COLUMN_4_WIDTH, text="Disconnected", fg="red")
+		self.connection.grid(row=0, column=6, sticky=tk.NSEW)
 
-		self.remove = Button(self, image=remove_icon, command=self.remove_pressed)
-		self.remove.grid(row=0, column=7, padx=(10,5), sticky=NSEW)
+		self.remove = tk.Button(self, image=remove_icon, command=self.remove_pressed)
+		self.remove.grid(row=0, column=7, padx=(10,5), sticky=tk.NSEW)
 
 		try:
 			self.info_update()
@@ -622,7 +619,7 @@ class IOCLine(Frame):
 
 
 
-class Application(Frame):
+class Application(tk.Frame):
 	def on_exit(self):
 		for each in self.lines:
 			each.disconnect()
@@ -636,7 +633,7 @@ class Application(Frame):
 		self.lines.append(IOCLine(self, ioc, info, description=description))
 		self.next_row = self.next_row + 1
 
-		self.lines[len(self.lines) - 1].grid(row=self.next_row, column=0, pady=(0,5), sticky=NSEW)
+		self.lines[len(self.lines) - 1].grid(row=self.next_row, column=0, pady=(0,5), sticky=tk.NSEW)
 
 	def remove_line(self, line):
 		index = self.lines.index(line)
@@ -667,22 +664,22 @@ class Application(Frame):
 				tkinter.messagebox.showinfo("Saved Config", "Configuration saved to: " + self.config_file)
 
 	def choose_ioc(self):
-		self.popup = Toplevel()
+		self.popup = tk.Toplevel()
 		self.popup.wm_title("Add IOC")
 
 		self.iocs.update_all()
 
 		ioc_list = self.iocs.filter(self.subnet)
 
-		self.popup_list = Listbox(self.popup, height=10)
+		self.popup_list = tk.Listbox(self.popup, height=10)
 
 		for item in ioc_list:
-			self.popup_list.insert(END, item)
+			self.popup_list.insert(tk.END, item)
 
 		self.popup_list.grid(row=0, column=0, padx=(10,10), pady=(10,5))
 
 
-		self.popup_add = Button(self.popup, text="Add", command=self.ioc_chosen)
+		self.popup_add = tk.Button(self.popup, text="Add", command=self.ioc_chosen)
 		self.popup_add.grid(row=1, column=0, pady=(0,10))
 
 		self.popup.grab_set()
@@ -704,7 +701,7 @@ class Application(Frame):
 		self.popup_add = None
 
 	def __init__(self, master=None):
-		Frame.__init__(self, master)
+		tk.Frame.__init__(self, master)
 
 		config_home = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
 		self.config_folder = os.path.join(config_home, "iocman")
@@ -718,7 +715,7 @@ class Application(Frame):
 		master.title("IOC List")
 
 		self.labels = LabelLine(self, save_func=self.save_config, add_func=self.choose_ioc)
-		self.labels.grid(row=0, column=0, pady=(5,5), sticky=NSEW)
+		self.labels.grid(row=0, column=0, pady=(5,5), sticky=tk.NSEW)
 
 		self.next_row = 1
 		self.lines = []
