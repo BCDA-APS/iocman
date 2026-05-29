@@ -896,6 +896,9 @@ class Application(tk.Frame):
 				self.popup_list.insert(tk.END, name)
 
 	def choose_ioc(self):
+		if self.popup:
+			return
+
 		self.popup = tk.Toplevel()
 		self.popup.wm_title("Add IOC")
 
@@ -921,7 +924,22 @@ class Application(tk.Frame):
 		self.popup_add.grid(row=2, column=0, pady=(0,10))
 
 		self.popup_filter.focus_set()
+		self.popup.bind("<Return>", lambda e: self.ioc_chosen())
+		self.popup.bind("<Escape>", lambda e: self._close_popup())
 		self.popup.grab_set()
+
+	def _close_popup(self):
+		if not self.popup:
+			return
+
+		self.popup.grab_release()
+		self.popup.destroy()
+		self.popup = None
+		self.popup_list = None
+		self.popup_add = None
+		self.popup_filter = None
+		self.popup_filter_var = None
+		self.popup_ioc_list = None
 
 	def ioc_chosen(self):
 		selection = self.popup_list.curselection()
@@ -932,15 +950,7 @@ class Application(tk.Frame):
 		ioc_name = self.popup_list.get(selection[0])
 
 		self.add_line(ioc_name, self.popup_ioc_list[ioc_name])
-
-		self.popup.grab_release()
-		self.popup.destroy()
-		self.popup = None
-		self.popup_list = None
-		self.popup_add = None
-		self.popup_filter = None
-		self.popup_filter_var = None
-		self.popup_ioc_list = None
+		self._close_popup()
 
 	def __init__(self, master=None):
 		tk.Frame.__init__(self, master)
@@ -975,9 +985,12 @@ class Application(tk.Frame):
 		self.inner_frame.bind("<Configure>", self._on_frame_configure)
 		self.bind_all("<Button-4>", self._on_mousewheel)
 		self.bind_all("<Button-5>", self._on_mousewheel)
+		master.bind_all("<Control-s>", lambda e: self.save_config())
+		master.bind_all("<Control-n>", lambda e: self.choose_ioc())
 
 		self.next_row = 0
 		self.lines = []
+		self.popup = None
 		self._drag_source = None
 		self._drag_index = None
 		self._drag_target_index = None
