@@ -669,8 +669,11 @@ class IOCLine(tk.Frame):
 		self.desc = tk.Entry(self, width=COLUMN_1_WIDTH, textvariable=self.description)
 		self.desc.grid(row=0, column=0, padx=(5,0), sticky=tk.NSEW)
 
-		self.index = tk.Label(self, width=COLUMN_2_WIDTH, text=self.name)
+		self.index = tk.Label(self, width=COLUMN_2_WIDTH, text=self.name, cursor="fleur")
 		self.index.grid(row=0, column=1, sticky=tk.NSEW)
+		self.index.bind("<ButtonPress-1>", self.app._drag_start)
+		self.index.bind("<B1-Motion>", self.app._drag_motion)
+		self.index.bind("<ButtonRelease-1>", self.app._drag_end)
 
 		self.remote = tk.Button(self, width=COLUMN_5_WIDTH, text="Remote", command=self.remote_pressed)
 		self.remote.grid(row=0, column=2, padx=(0,5), sticky=tk.NSEW)
@@ -720,19 +723,119 @@ class Application(tk.Frame):
 		self._on_frame_configure()
 
 	def _on_frame_configure(self, event=None):
-		self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+		bbox = self.canvas.bbox("all")
+		if bbox:
+			self.canvas.configure(scrollregion=(0, 0, bbox[2], bbox[3]))
+		else:
+			self.canvas.configure(scrollregion=(0, 0, 0, 0))
 
 		if self.inner_frame.winfo_reqheight() > self.canvas.winfo_height():
 			self.scrollbar.grid(row=1, column=1, sticky="ns")
 		else:
 			self.scrollbar.grid_remove()
+			self.canvas.yview_moveto(0)
+		self.update_idletasks()
 
 	def _on_mousewheel(self, event):
+		if self.inner_frame.winfo_reqheight() <= self.canvas.winfo_height():
+			return
 		if event.num == 4:
 			self.canvas.yview_scroll(-1, "units")
 		elif event.num == 5:
 			self.canvas.yview_scroll(1, "units")
 
+	def _set_line_bg(self, line, color):
+		default_bg = self.inner_frame.cget("bg") if not color else color
+		bg = default_bg if not color else color
+		line.configure(bg=bg)
+		for child in line.winfo_children():
+			if isinstance(child, tk.Entry):
+				continue
+			try:
+				child.configure(bg=bg)
+			except tk.TclError:
+				pass
+
+	def _drag_start(self, event):
+		source = event.widget.master
+		if source in self.lines:
+			self._drag_source = source
+			self._drag_index = self.lines.index(source)
+			self._drag_target_index = self._drag_index
+
+	def _drag_motion(self, event):
+		if self._drag_source is None:
+			return
+
+		canvas_top = self.canvas.winfo_rooty()
+		canvas_bottom = canvas_top + self.canvas.winfo_height()
+		edge_zone = 30
+
+		if event.y_root < canvas_top + edge_zone:
+			self._auto_scroll(-1)
+		elif event.y_root > canvas_bottom - edge_zone:
+			self._auto_scroll(1)
+		else:
+			self._cancel_auto_scroll()
+
+		canvas_y = self.canvas.canvasy(event.y_root - canvas_top)
+
+		target_index = self._drag_index
+		for i, line in enumerate(self.lines):
+			line_y = line.winfo_y()
+			line_h = line.winfo_height()
+			if line_y <= canvas_y <= line_y + line_h:
+				target_index = i
+				break
+
+		if self._drag_target_index is not None and self._drag_target_index < len(self.lines):
+			self._set_line_bg(self.lines[self._drag_target_index], "")
+
+		self._drag_target_index = target_index
+
+		if self._drag_target_index != self._drag_index:
+			self._set_line_bg(self.lines[self._drag_target_index], "light blue")
+
+	def _drag_end(self, event):
+		if self._drag_source is None:
+			return
+
+		self._cancel_auto_scroll()
+
+		for line in self.lines:
+			self._set_line_bg(line, "")
+
+		if self._drag_target_index != self._drag_index:
+			line = self.lines.pop(self._drag_index)
+			self.lines.insert(self._drag_target_index, line)
+			self._regrid_lines()
+
+		self._drag_source = None
+		self._drag_index = None
+		self._drag_target_index = None
+
+	def _regrid_lines(self):
+		for i, line in enumerate(self.lines):
+			line.grid_forget()
+			line.grid(row=i, column=0, pady=(0,5), sticky=tk.NSEW)
+		self.next_row = len(self.lines)
+
+	def _auto_scroll(self, direction):
+		self._cancel_auto_scroll()
+		if self.inner_frame.winfo_reqheight() <= self.canvas.winfo_height():
+			return
+		top, bottom = self.canvas.yview()
+		if direction < 0 and top <= 0:
+			return
+		if direction > 0 and bottom >= 1.0:
+			return
+		self.canvas.yview_scroll(direction, "units")
+		self._drag_scroll_id = self.after(50, self._auto_scroll, direction)
+
+	def _cancel_auto_scroll(self):
+		if self._drag_scroll_id:
+			self.after_cancel(self._drag_scroll_id)
+			self._drag_scroll_id = None
 
 	def _update_canvas_height(self):
 		self.update_idletasks()
@@ -875,6 +978,10 @@ class Application(tk.Frame):
 
 		self.next_row = 0
 		self.lines = []
+		self._drag_source = None
+		self._drag_index = None
+		self._drag_target_index = None
+		self._drag_scroll_id = None
 
 		ioc_list = self.iocs.filter(self.subnet)
 
