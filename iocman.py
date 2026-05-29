@@ -291,8 +291,11 @@ class IOCLine(tk.Frame):
 		if self.is_remote():
 			userhost = self.info["user"] + "@" + self.info["hostname"]
 			remote_cmd = self.script + " " + " ".join(args)
-			subprocess.Popen(["xterm", "-T", title, "-e",
-				"ssh", "-o", "ConnectTimeout=5", userhost, remote_cmd])
+			ssh_args = ["ssh", "-o", "ConnectTimeout=5"]
+			if interactive:
+				ssh_args.append("-t")
+			ssh_args.extend([userhost, remote_cmd])
+			subprocess.Popen(["xterm", "-T", title, "-e"] + ssh_args)
 		elif interactive:
 			subprocess.Popen(["xterm", "-T", title, "-e",
 				self.script] + list(args))
